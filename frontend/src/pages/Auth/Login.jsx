@@ -12,12 +12,16 @@ function Login() {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        dispatch(loginUser({ email, password })).then((data) => {
-            if (data.payload.success) {
-                toast.success(data.payload.message);
+        dispatch(loginUser({ email, password }))
+            .unwrap()
+            .then((data) => {
+                toast.success(data.message || "Login successful");
                 navigate("/");
-            }
-        });
+            })
+            .catch((error) => {
+                toast.error(error.message || "Invalid login credentials");
+            });
+
     };
 
     return (

@@ -1,93 +1,126 @@
-import emailExistence from "email-existence";
 import User from "../models/User.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import "dotenv/config.js";
-import sendEmail from "../utils/sendEmail.js";
 import sendMail from "../utils/sendEmail.js";
 
-//register
-export const register=async(req,res)=>{
-    const {name,email,password,role}=req.body;
-    console.log(req.body);
-   
-    try{
-        const user=await User.findOne({email});
-        if(user){
-            return res.status(400).json({message:"User already exists"});
-        }
-        
-        const emailIsValid = await new Promise((resolve, reject) => {
-            emailExistence.check(email, function (error, response) {
-                if (error) reject(error);
-                resolve(response);
-            });
-        });
-        console.log(emailIsValid);
-        if (emailIsValid!=true) {
-            return res.status(400).json({ message: "Email is not valid" });
-        }
-        
-        
-        const hashedPassword=await bcrypt.hash(password,10);
-        const newUser=new User({
-            name,email,password:hashedPassword,role
-        });
-        sendMail(newUser.email,"Registed to CivicSphere successfully!")
-        const saveduser=await newUser.save();
+// REGISTER
+export const register = async (req, res) => {
+  const { name, email, password, role } = req.body;
+  console.log("Register Request Body:", req.body);
 
-        res.json({message:"User registered successfully"});
-    }catch(err){
-        console.error(err.message);
-        res.status(500).send("Server error");
+  try {
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ success: false, message: "User already exists" });
     }
-}
 
-//login
-export const login=async(req,res)=>{
-    
-    const {email,password}=req.body;
-   
-    try{
-        const user=await User.findOne({email});
-        
-        if(!user){
-            return res.status(400).json({message:"User not found"});
-        }
-        const match=await bcrypt.compare(password,user.password);
-        if(!match){
-            return res.status(400).json({success:false,message:"Incorrect password"});
-        }
-        const token=await jwt.sign({email:user.email,id:user._id},process.env.JWT_SECRET ,{expiresIn:"5d"});
-        return res.cookie("token",token, { httpOnly: true, secure: false }).json({
-            message:"Login successful",
-            success:true,
-            user,
-            token:token
-        })
-    }catch(err){
-        console.error(err.message);
-        res.status(500).send("Server error");
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!email || !emailRegex.test(email)) {
+      return res.status(400).json({ success: false, message: "Email is not valid" });
     }
-}
 
-export const logoutUser = (req, res) => {
-    res.clearCookie("token").json({
-      success: true,
-      message: "Logged out successfully!",
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Create and save user
+    const newUser = new User({
+      name,
+      email,
+      password: hashedPassword,
+      role,
     });
-  };
 
-export const getUser=async(req,res)=>{
-    console.log("Hello from get User")
-    try{
-        const user=await User.findById(req.params.id).select("-password");
-        res.json({success:true,user,message:"User fetched successfully"});
-    }catch(err){
-        console.error(err.message);
-        res.status(500).json({
-            success:false,
-            message: "Server error"
-        });
+    // Send welcome email
+    sendMail(newUser.email, "Registered to CivicSphere successfully!");
+
+    const savedUser = await newUser.save();
+
+    res.json({
+      success: true,
+      message: "User registered successfully",
+      user: {
+        id: savedUser._id,
+        name: savedUser.name,
+        email: savedUser.email,
+        role: savedUser.role,
+      },
+    });
+  } catch (err) {
+    console.error("Register Error:", err.message);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// LOGIN
+export const login = async (req, res) => {
+  const { email, password } = req.body;
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ success: false, message: "User not found" });
     }
-}
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ success: false, message: "Incorrect password" });
+    }
+
+    const token = jwt.sign(
+      { email: user.email, id: user._id },
+      process.env.JWT_SECRET,
+      { expiresIn: "5d" }
+    );
+
+    return res
+      .cookie("token", token, { httpOnly: true, secure: false })
+      .json({
+        message: "Login successful",
+        success: true,
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        },
+        token,
+      });
+  } catch (err) {
+    console.error("Login Error:", err.message);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+};
+
+// LOGOUT
+export const logoutUser = (req, res) => {
+  res.clearCookie("token").json({
+    success: true,
+    message: "Logged out successfully!",
+  });
+};
+
+// GET USER BY ID
+export const getUser = async (req, res) => {
+  console.log("Get User Request:", req.params.id);
+  try {
+    const user = await User.findById(req.params.id).select("-password");
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    res.json({
+      success: true,
+      user,
+      message: "User fetched successfully",
+    });
+  } catch (err) {
+    console.error("Get User Error:", err.message);
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};

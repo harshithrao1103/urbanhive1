@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import axios from "axios";
+import axios from "../../axios"; // adjust path if needed
+
 
 const initialState = {
   isAuthenticated: false,
@@ -8,38 +9,30 @@ const initialState = {
 };
 
 export const registerUser = createAsyncThunk(
-  "/auth/register",
-
-  async (formData) => {
-    const response = await axios.post(
-      `${import.meta.env.VITE_BACKEND_URL}/api/auth/register`,
-      formData,
-      {
-        withCredentials: true,
-      }
-    );
-
-    return response.data;
+  "auth/registerUser",
+  async (userData, thunkAPI) => {
+    try {
+      const response = await axios.post("/auth/register", userData);
+      return response.data;
+    } catch (error) {
+      return thunkAPI.rejectWithValue(error.response.data);
+    }
   }
 );
+
 
 export const loginUser = createAsyncThunk(
-  "/auth/login",
-
-  async (formData) => {
-
-    const response = await axios.post(
-      `${import.meta.env.VITE_BACKEND_URL}/api/auth/login`,
-      formData,
-      {
-        withCredentials: true,
-      }
-    );
-
-
-    return response.data;
+  "auth/loginUser",
+  async (loginData, thunkAPI) => {
+    try {
+      const response = await axios.post("/auth/login", loginData);
+      return response.data;
+    } catch (error) {
+      return thunkAPI.rejectWithValue(error.response.data); // ✅ Proper rejection
+    }
   }
 );
+
 
 export const logoutUser = createAsyncThunk(
   "/auth/logout",

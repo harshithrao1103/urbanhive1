@@ -29,7 +29,7 @@ const resourceSchema = mongoose.Schema({
         enum: ['available', 'inavailable']
     },
     price: { type: Number, default: 0 },
-    images: { type: String, default: "" },
+    images: { type: String, required: false },
     description: { type: String, required: true },
     contact: { type: String, required: true }, // ✅ NEW FIELD
     ratings: { type: Number, default: 0, min: 0, max: 5 },

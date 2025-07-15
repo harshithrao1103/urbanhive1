@@ -3,7 +3,7 @@ import "dotenv/config";
 import http from "http";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-import multer from "multer";
+//import multer from "multer";
 import session from "express-session";
 import { Server } from "socket.io";
 
@@ -17,7 +17,7 @@ import locationRouter from "./routes/location.route.js";
 import emergencyRouter from "./routes/emergency.route.js";
 import chatRouter from "./routes/chat.route.js";
 
-import uploadToS3 from "./utils/AWSUpload.js";
+//import uploadToS3 from "./utils/AWSUpload.js";
 import connectDb from "./utils/connectDb.js";
 import chatSocket from "./sockets/chatSocket.js";
 
@@ -32,7 +32,7 @@ const allowedOrigins = [
 
 // ✅ CORS middleware (apply only once)
 app.use(cors({
-  origin: allowedOrigins,
+  origin: "http://localhost:5173",
   credentials: true,
 }));
 
@@ -50,12 +50,12 @@ app.use(
 );
 
 // ✅ Setup multer for uploads
-const upload = multer({ storage: multer.memoryStorage() });
+//const upload = multer({ storage: multer.memoryStorage() });
 
 // ✅ Initialize Socket.IO with proper CORS
 const io = new Server(server, {
   cors: {
-    origin: allowedOrigins,
+    origin: "http://localhost:5173",
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -72,18 +72,7 @@ app.get("/", (req, res) => {
   res.json({ message: "Server is alive" });
 });
 
-app.post("/api/v1/upload", upload.single("file"), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: "No file uploaded" });
-    }
-    const fileUrl = await uploadToS3(req.file);
-    res.status(200).json({ fileUrl });
-  } catch (error) {
-    console.error("Upload Error:", error);
-    res.status(500).json({ error: "File upload failed" });
-  }
-});
+
 
 app.use("/api/auth", userRouter);
 app.use("/api/project", projectRouter);
@@ -100,3 +89,15 @@ const PORT = process.env.PORT || 8000;
 server.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`);
 });
+// app.post("/api/v1/upload", upload.single("file"), async (req, res) => {
+//   try {
+//     if (!req.file) {
+//       return res.status(400).json({ error: "No file uploaded" });
+//     }
+//     const fileUrl = await uploadToS3(req.file);
+//     res.status(200).json({ fileUrl });
+//   } catch (error) {
+//     console.error("Upload Error:", error);
+//     res.status(500).json({ error: "File upload failed" });
+//   }
+// });
