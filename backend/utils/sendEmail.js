@@ -1,38 +1,23 @@
-import nodemailer from "nodemailer";
-const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587, // Use 587 for STARTTLS
-    secure: false,
-    auth: {
-      user: "akashsiripuram05@gmail.com", // Your email from .env
-      pass: "uqfcpoxuzvfiwvuo", // Your app-specific password from .env
-    },
-  });
-export default async function sendMail(email,msg){
-  
 
-  if (!email) {
-    return res.status(400).send({ message: "Email is required." });
-  }
+import nodemailer from 'nodemailer';
 
- 
-  
-
-  try {
-    await transporter.sendMail({
-      from: "akashsiripuram05@gmail.com",
-      to: email,
-      subject: "Joined Project",
-      text: msg,
+const sendEmail = async (to, subject, text) => {
+    const transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS,
+        },
     });
-    
-    
-  } catch (error) {
-   
-    
-  }
-}
-//console.log("📨 Message from", sender, "to room:", projectId);
 
+    const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to,
+        subject,
+        text,
+    };
 
-  
+    await transporter.sendMail(mailOptions);
+};
+
+export default sendEmail;

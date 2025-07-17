@@ -18,6 +18,7 @@ import Emergency from "./pages/Emergency/Emergency";
 import RegionalPlanning from "./pages/RegionalPlanning/RegionalPlanning";
 import NotFound from "./pages/NotFound/NotFound";
 import ChatBot from "./pages/Chatbot/Chatbot";
+import Leaderboard from "./pages/LeaderBoard/Leaderboard";
 function App() {
   const { user, isAuthenticated, isLoading } = useSelector(
     (state) => state.auth
@@ -59,6 +60,7 @@ function App() {
               <Route path="donations" element={<Donation />} />
               <Route path="emergency" element={<Emergency />} />
               <Route path="regional-planning" element={<RegionalPlanning />} />
+              <Route path="/leaderboard" element={<Leaderboard />} />
             </Route>
           )
         }

@@ -6,6 +6,14 @@ const initialState = {
     projects: [],
     project:null
 };
+//complete project
+export const completeProject = createAsyncThunk("/project/complete", async (projectId) => {
+  const response = await axios.put(`${import.meta.env.VITE_BACKEND_URL}/api/project/complete/${projectId}`, {}, {
+    withCredentials: true,
+  });
+  return response.data;
+});
+
 
 // Fetch projects
 export const fetchProjects = createAsyncThunk("/project", async () => {
@@ -35,17 +43,23 @@ export const getProject=createAsyncThunk("/project/get",async(projectId)=>{
     })
     return response.data;
 })
-export const requestProject = createAsyncThunk("/project/request", async (projectId,userId)=>{
-    const response=await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/project/request`,{projectId,userId}, {
-        withCredentials: true,
-    })
+// Request project
+export const requestProject = createAsyncThunk("/project/request", async ({ projectId }, thunkAPI) => {
+    const response = await axios.post(
+        `${import.meta.env.VITE_BACKEND_URL}/api/project/request`,
+        { projectId },
+        { withCredentials: true }
+    );
     return response.data;
-})
+});
 
-export const assignProject = createAsyncThunk("/assign",async (projectId,userId)=>{
-    const response=await axios.post(`${import.meta.env.VITE_BACKEND_URL}/api/project/${projectId}/assign`,{userId}, {
-        withCredentials: true,
-    })
+// Assign project
+export const assignProject = createAsyncThunk("/assign", async ({ projectId, userId }, thunkAPI) => {
+    const response = await axios.post(
+        `${import.meta.env.VITE_BACKEND_URL}/api/project/${projectId}/assign`,
+        { userId },
+        { withCredentials: true }
+    );
     return response.data;
 });
 
@@ -61,8 +75,12 @@ const projectSlice = createSlice({
                 state.isLoading = true;
             })
             .addCase(fetchProjects.fulfilled, (state, action) => {
-                state.isLoading = false;
-                state.projects = action.payload.success ? action.payload.project : [];
+            state.isLoading = false;
+            state.projects = action.payload.success
+                ? action.payload.project.sort((a, b) =>
+                    a.status === "completed" && b.status !== "completed" ? 1 : -1
+                )
+                : [];
             })
             .addCase(fetchProjects.rejected, (state) => {
                 state.isLoading = false;
@@ -111,6 +129,16 @@ const projectSlice = createSlice({
             .addCase(requestProject.pending,(state)=>{
                 state.isLoading=true;
             })
+            .addCase(completeProject.fulfilled, (state, action) => {
+                if (action.payload.success) {
+                state.project = action.payload.project;
+                // Also update the project in the projects list
+                state.projects = state.projects.map((p) =>
+                    p._id === action.payload.project._id ? action.payload.project : p
+                );
+                }
+            })
+
     }
 });
 

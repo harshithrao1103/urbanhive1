@@ -311,9 +311,9 @@ function Project() {
   const getProgressColor = (status) => {
     switch (status) {
       case "active":
-        return "bg-green-500";
-      case "completed":
         return "bg-blue-500";
+      case "completed":
+        return "bg-green-500";
       default:
         return "bg-yellow-500";
     }
@@ -446,7 +446,7 @@ function Project() {
                     </div>
                     <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-green-100">
                       <div
-                        style={{ width: `${Math.floor(Math.random() * 100)}%` }}
+                        style={{ width: project.status === "completed" ? "100%" : "50%" }}
                         className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center transition-all duration-500 ${getProgressColor(
                           project.status
                         )}`}
@@ -456,18 +456,35 @@ function Project() {
 
                   <div className="flex flex-row justify-between space-x-3">
                     <button
-                      className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2"
+                      className={`w-full text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 ${
+                        project.status === "completed"
+                          ? "bg-gray-400 cursor-not-allowed"
+                          : "bg-green-500 hover:bg-green-600"
+                      }`}
                       onClick={() => handleJoin(project._id, project)}
-                      disabled={isJoined}
+                      disabled={isJoined || project.status === "completed"}
                     >
                       {isJoined ? "Joined" : "Join Project"}
                       <Target className="w-4 h-4" />
                     </button>
 
-                    <button className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2">
-                      <Link to={`/project/${project._id}`}>Support Project</Link>
-                      <Target className="w-4 h-4" />
-                    </button>
+                    {project.status !== "completed" ? (
+                      <Link
+                        to={`/project/${project._id}`}
+                        className="w-full text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600"
+                      >
+                        Support Project
+                        <Target className="w-4 h-4" />
+                      </Link>
+                    ) : (
+                      <button
+                        className="w-full text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center gap-2 bg-gray-400 cursor-not-allowed"
+                        disabled
+                      >
+                        Support Project
+                        <Target className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

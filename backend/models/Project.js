@@ -33,10 +33,12 @@ const ProjectSchema = mongoose.Schema({
     type: Date,
     required: true
   },
-  members:{
-    type: Array,
-    default:[]
-  },
+  members: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+    }
+  ],
   tasks:{
     type: Array,
     default:[]

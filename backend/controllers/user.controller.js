@@ -3,6 +3,8 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import "dotenv/config.js";
 import sendMail from "../utils/sendEmail.js";
+import { addPoints, addDailyLoginPoints } from "../utils/points.js";
+
 
 // REGISTER
 export const register = async (req, res) => {
@@ -38,6 +40,9 @@ export const register = async (req, res) => {
 
     const savedUser = await newUser.save();
 
+    // 🎯 Add 500 signup points
+    await addPoints(savedUser._id, 500, "Signup Bonus");
+
     res.json({
       success: true,
       message: "User registered successfully",
@@ -48,6 +53,7 @@ export const register = async (req, res) => {
         role: savedUser.role,
       },
     });
+
   } catch (err) {
     console.error("Register Error:", err.message);
     res.status(500).json({ success: false, message: "Server error" });
@@ -75,6 +81,9 @@ export const login = async (req, res) => {
       { expiresIn: "5d" }
     );
 
+    // 🎯 Add daily login point (only once per day)
+    await addDailyLoginPoints(user._id);
+
     return res
       .cookie("token", token, { httpOnly: true, secure: false })
       .json({
@@ -88,6 +97,7 @@ export const login = async (req, res) => {
         },
         token,
       });
+
   } catch (err) {
     console.error("Login Error:", err.message);
     res.status(500).json({ success: false, message: "Server error" });
@@ -124,3 +134,18 @@ export const getUser = async (req, res) => {
     });
   }
 };
+
+//Leaderboard - Top users by points
+export const getLeaderboard = async (req, res) => {
+  try {
+    const users = await User.find({ name: { $ne: "demo" } })
+      .sort({ points: -1 })
+      .select("name points");
+
+    res.json({ success: true, users });
+  } catch (error) {
+    console.error("Leaderboard Error:", error);
+    res.status(500).json({ success: false, message: "Failed to fetch leaderboard" });
+  }
+};
+

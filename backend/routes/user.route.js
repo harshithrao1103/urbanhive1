@@ -2,6 +2,7 @@ import express from "express";
 import { Router } from "express";
 import { getUser, login, logoutUser, register } from "../controllers/user.controller.js";
 import { verifyToken } from "../utils/middleware.js";
+import { getLeaderboard } from "../controllers/user.controller.js";
 
 const app = express();
 const router=Router();
@@ -18,5 +19,7 @@ router.get("/check-auth",verifyToken,(req,res,next)=>{
         user
     })
 })
+router.get('/leaderboard', getLeaderboard);
+
 
 export default router;

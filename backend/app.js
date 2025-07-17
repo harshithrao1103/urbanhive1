@@ -3,7 +3,6 @@ import "dotenv/config";
 import http from "http";
 import cors from "cors";
 import cookieParser from "cookie-parser";
-//import multer from "multer";
 import session from "express-session";
 import { Server } from "socket.io";
 
