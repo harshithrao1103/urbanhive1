@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mapbox Location Search</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
+    <!-- Mapbox GL JS -->
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.css" rel="stylesheet" />
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.4.0/mapbox-gl.js"></script>
+
+    <!-- Mapbox Search JS -->
+    <link href="https://api.mapbox.com/search-js/v1.0.0-beta.19/web.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/search-js/v1.0.0-beta.19/web.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom styles for the Mapbox Search Box input */
+        .mapboxgl-ctrl-geocoder--input {
+            width: 100% !important;
+            border-radius: 0.5rem;
+            padding: 0.75rem 1rem;
+            font-size: 1rem;
+            border: none; /* Remove default border */
+            outline: none; /* Remove outline on focus */
+        }
+        /* Custom styles for the Mapbox Search Box suggestions dropdown */
+        .mapboxgl-ctrl-geocoder--suggestions {
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            background-color: white; /* Ensure background for suggestions */
+            z-index: 1000; /* Ensure suggestions appear above other elements */
+        }
+        /* Style for individual suggestion items on hover */
+        .mapboxgl-ctrl-geocoder--suggestion:hover {
+            background-color: #f0f4f8; /* Light gray background on hover */
+            cursor: pointer;
+        }
+        /* Style for the address display textarea */
+        #address-display-area {
+            width: 100%;
+            min-height: 80px; /* Minimum height for the textarea */
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid #cbd5e0; /* light gray border */
+            font-size: 1rem;
+            resize: vertical; /* Allow vertical resizing by user */
+            margin-top: 1rem; /* Space above the textarea */
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05); /* subtle shadow */
+            font-family: 'Inter', sans-serif; /* Ensure consistent font */
+            color: #374151; /* Darker text color */
+        }
+        /* Style for the new home address textarea */
+        #home-address-area {
+            width: 100%;
+            min-height: 100px; /* Slightly larger minimum height for more input */
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            border: 1px solid #a0aec0; /* Slightly darker border for distinction */
+            font-size: 1rem;
+            resize: vertical; /* Allow vertical resizing by user */
+            margin-top: 1rem; /* Space above the textarea */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* More prominent shadow */
+            font-family: 'Inter', sans-serif; /* Ensure consistent font */
+            color: #1a202c; /* Even darker text color */
+            background-color: #f7fafc; /* Slightly darker background to distinguish */
+        }
+
+        /* Styles for the custom modal/popup */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000; /* Ensure it's on top of everything */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.75rem;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+            transform: translateY(-20px);
+            opacity: 0;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+
+        .modal-overlay.show .modal-content {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .modal-content h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: #2d3748;
+        }
+
+        .modal-content p {
+            margin-bottom: 1.5rem;
+            color: #4a5568;
+            white-space: pre-wrap; /* Preserve whitespace and line breaks */
+            text-align: left;
+            font-size: 0.95rem;
+        }
+
+        .modal-content button {
+            padding: 0.75rem 1.5rem;
+            background-color: #4299e1;
+            color: white;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            transition: background-color 0.2s ease;
+        }
+
+        .modal-content button:hover {
+            background-color: #3182ce;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-6 flex flex-col items-center">
+
+    <h1 class="text-3xl font-bold mb-6 text-gray-800">Mapbox Location Search</h1>
+
+    <!-- New button to show the address input interface -->
+    <button id="add-address-btn" class="px-8 py-4 bg-blue-700 hover:bg-blue-800 text-white font-bold text-lg rounded-lg shadow-xl transition duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-500 focus:ring-opacity-75 mb-8">
+        Add Address or Location
+    </button>
+
+    <!-- Main map and address input interface - initially hidden -->
+    <div id="map-interface-container" class="w-full max-w-4xl bg-white shadow-lg rounded-lg overflow-hidden border border-gray-200 hidden">
+        <!-- Container for the search box and submit button -->
+        <div id="search-control-container" class="bg-blue-600 p-4 text-white text-sm flex flex-col sm:flex-row items-center justify-between gap-2">
+            <span class="mb-2 sm:mb-0">Type a location and press <strong>Enter</strong> or click Submit, or click directly on the map.</span>
+            <div class="flex items-center w-full sm:w-auto">
+                <div id="search-box-container" class="flex-grow">
+                    <!-- Mapbox Search Box will be appended here -->
+                </div>
+                <button id="submit-location-btn" class="ml-2 px-4 py-2 bg-blue-800 hover:bg-blue-700 text-white font-semibold rounded-md shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-75">
+                    Submit
+                </button>
+                <button id="current-location-btn" class="ml-2 px-4 py-2 bg-green-600 hover:bg-green-500 text-white font-semibold rounded-md shadow-md transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-green-400 focus:ring-opacity-75">
+                    Use My Current Location
+                </button>
+                <div id="loading-indicator" class="hidden text-white ml-2">
+                    <svg class="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+        <!-- Map container -->
+        <div id="map" class="h-[500px] sm:h-[600px] w-full relative">
+            <!-- Coordinates display div (now removed, replaced by textarea below) -->
+        </div>
+        <!-- Textarea for displayed address from map -->
+        <textarea id="address-display-area" class="bg-gray-50 text-gray-700" placeholder="Location address will appear here..." readonly></textarea>
+
+        <!-- New textarea for user's home address -->
+        <textarea id="home-address-area" class="bg-gray-50 text-gray-700" placeholder="Enter your home address here..." rows="4"></textarea>
+
+        <!-- "Submit All Information" button - MOVED INSIDE map-interface-container -->
+        <div class="mt-6 w-full flex justify-center p-4">
+            <button id="submit-all-info-btn" class="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg shadow-lg transition duration-200 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-75">
+                Submit All Information
+            </button>
+        </div>
+    </div>
+
+
+    <!-- Custom Modal/Popup Structure -->
+    <div id="info-modal-overlay" class="modal-overlay">
+        <div class="modal-content">
+            <h3>Information Submitted!</h3>
+            <p id="modal-message"></p>
+            <button id="modal-close-btn">Close</button>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * Displays a temporary error message on the page.
+         * This function is defined globally within the script tag
+         * to ensure it's accessible even during early initialization errors.
+         * @param {string} message - The error message to display.
+         */
+        function displayErrorMessage(message) {
+            let errorDiv = document.getElementById('app-error-message');
+            if (!errorDiv) {
+                errorDiv = document.createElement('div');
+                errorDiv.id = 'app-error-message';
+                errorDiv.className = 'text-red-600 mt-4 text-center p-2 bg-red-100 rounded-md shadow-sm';
+                document.body.appendChild(errorDiv);
+            }
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000); // Hide after 5 seconds
+        }
+
+        // Function to show the custom modal
+        function showInfoModal(message) {
+            const modalOverlay = document.getElementById('info-modal-overlay');
+            const modalMessage = document.getElementById('modal-message');
+            modalMessage.textContent = message;
+            modalOverlay.classList.add('show');
+        }
+
+        // Function to hide the custom modal
+        function hideInfoModal() {
+            const modalOverlay = document.getElementById('info-modal-overlay');
+            modalOverlay.classList.remove('show');
+
+            // Reset the interface to initial state
+            const mapInterfaceContainer = document.getElementById("map-interface-container");
+            const addAddressButton = document.getElementById("add-address-btn");
+            const addressTextArea = document.getElementById("address-display-area");
+            const homeAddressTextArea = document.getElementById("home-address-area");
+
+            mapInterfaceContainer.classList.add('hidden'); // Hide the map interface
+            addAddressButton.classList.remove('hidden'); // Show the "Add Address" button
+
+            // Clear text areas
+            if (addressTextArea) addressTextArea.value = '';
+            if (homeAddressTextArea) homeAddressTextArea.value = '';
+
+            // Crucially, remove map and searchBox instances to allow clean re-initialization
+            if (map) {
+                map.remove();
+                map = null; // Set to null so initializeMapboxComponents knows to create a new one
+                console.log('Mapbox map instance removed.');
+            }
+            if (searchBox) {
+                // MapboxSearchBox doesn't have a .remove() method in this beta version,
+                // but setting its reference to null helps with garbage collection.
+                // If a .remove() method becomes available in future versions, it should be used here.
+                searchBox = null;
+                console.log('Mapbox searchBox instance reset.');
+            }
+        }
+
+
+        // Global variables to hold Mapbox instances and elements, initialized once
+        // These need to be outside initializeMapboxComponents so they can be accessed by hideInfoModal
+        let map = null;
+        let searchBox = null;
+        let addressTextArea = null;
+        let homeAddressTextArea = null;
+        let loadingIndicator = null;
+        let submitButton = null;
+        let currentLocationButton = null;
+        let submitAllInfoButton = null;
+        let modalCloseButton = null;
+        let marker = null;
+
+
+        // Ensure the DOM is fully loaded before executing JavaScript
+        document.addEventListener('DOMContentLoaded', (event) => {
+            console.log('DOMContentLoaded fired. Attempting to initialize Mapbox components.');
+
+            // Get references to the new "Add Address" button and the container for the map interface
+            const addAddressButton = document.getElementById("add-address-btn");
+            const mapInterfaceContainer = document.getElementById("map-interface-container");
+
+            // Add event listener to the "Add Address" button to show the map interface
+            addAddressButton.addEventListener('click', () => {
+                console.log('[Add Address Button] Clicked. Showing map interface.');
+                mapInterfaceContainer.classList.remove('hidden'); // Remove 'hidden' class to show the container
+                addAddressButton.classList.add('hidden'); // Optionally hide the "Add Address" button after it's clicked
+                // It's crucial to initialize Mapbox GL JS map AFTER its container is visible
+                // This ensures the map calculates its size correctly.
+                initializeMapboxComponents();
+            });
+
+            // Moved the main Mapbox initialization into a function
+            function initializeMapboxComponents() {
+                // Prevent re-initialization if already done
+                if (map) {
+                    console.log('Mapbox components already initialized. Skipping re-initialization.');
+                    return;
+                }
+
+                try {
+                    // Set your Mapbox access token
+                    mapboxgl.accessToken = 'pk.eyJ1Ijoic2lyaWRldm9qdSIsImEiOiJjbHloZGdqYjIwMzVjMmtzYXowNjNzajRtIn0.5_fULxohRjzyjl9cKOL_mQ';
+
+                    // Verify Mapbox GL JS is loaded
+                    if (typeof mapboxgl === 'undefined' || typeof mapboxgl.Map === 'undefined') {
+                        console.error('Error: Mapbox GL JS (mapboxgl) is not loaded or not properly initialized.');
+                        displayErrorMessage('Map components failed to load. Please check your internet connection or browser console.');
+                        return; // Stop execution if Mapbox GL JS is not available
+                    }
+                    console.log('Mapbox GL JS is available.');
+
+                    // Initialize the Mapbox map
+                    map = new mapboxgl.Map({ // Assign to the outer 'map' variable
+                        container: 'map', // The ID of the HTML element where the map will be rendered
+                        style: 'mapbox://styles/mapbox/streets-v12', // Map style URL
+                        center: [78.9629, 20.5937], // Initial map center coordinates (Longitude, Latitude) for India
+                        zoom: 4 // Initial zoom level
+                    });
+
+                    addressTextArea = document.getElementById("address-display-area");
+                    homeAddressTextArea = document.getElementById("home-address-area");
+                    loadingIndicator = document.getElementById("loading-indicator");
+                    submitButton = document.getElementById("submit-location-btn");
+                    currentLocationButton = document.getElementById("current-location-btn");
+                    submitAllInfoButton = document.getElementById("submit-all-info-btn");
+                    modalCloseButton = document.getElementById("modal-close-btn");
+
+
+                    // Verify Mapbox Search JS is loaded
+                    if (typeof MapboxSearchBox === 'undefined') {
+                        console.error('Error: Mapbox Search JS (MapboxSearchBox) is not loaded or not properly initialized.');
+                        displayErrorMessage('Search functionality failed to load. Please check your internet connection or browser console.');
+                        return;
+                    }
+                    console.log('Mapbox Search JS is available.');
+
+                    // Initialize the Mapbox Search Box
+                    searchBox = new MapboxSearchBox(); // Assign to the outer 'searchBox' variable
+                    searchBox.accessToken = mapboxgl.accessToken;
+                    searchBox.mapboxgl = mapboxgl;
+                    document.getElementById("search-box-container").appendChild(searchBox);
+
+                    // Function to perform the search and display on map
+                    async function performSearchAndDisplay(query) {
+                        console.log(`[performSearchAndDisplay] Called with query: "${query}"`);
+                        if (!query || query.trim() === '') {
+                            displayErrorMessage('Please enter a location to search.');
+                            console.log('[performSearchAndDisplay] Query is empty, returning.');
+                            return;
+                        }
+
+                        loadingIndicator.classList.remove('hidden'); // Show loading indicator
+                        try {
+                            console.log('[performSearchAndDisplay] Calling searchBox.search...');
+                            const result = await searchBox.search(query);
+                            loadingIndicator.classList.add('hidden'); // Hide loading indicator
+                            console.log('[performSearchAndDisplay] Search result received:', result);
+
+                            const best = result?.features?.[0];
+                            if (best) {
+                                console.log('[performSearchAndDisplay] Best feature found:', best);
+                                const [lng, lat] = best.geometry.coordinates;
+                                const name = best.properties.name || best.properties.place_formatted || 'Unnamed Location';
+                                showOnMap(lng, lat, name);
+                            } else {
+                                console.log('[performSearchAndDisplay] No best feature found for query:', query);
+                                displayErrorMessage('Could not find detailed information for the typed location. Try being more specific.');
+                            }
+                        } catch (error) {
+                            loadingIndicator.classList.add('hidden'); // Hide loading indicator on error
+                            console.error('[performSearchAndDisplay] Error during manual search:', error);
+                            displayErrorMessage('An error occurred during the search. Please try again.');
+                        }
+                    }
+
+                    // Event listener for when a user clicks on a search suggestion
+                    searchBox.addEventListener('retrieve', (event) => {
+                        console.log('[retrieve event] Fired:', event);
+                        loadingIndicator.classList.add('hidden'); // Hide loading indicator
+                        const feature = event.detail.features[0];
+                        if (feature) {
+                            console.log('[retrieve event] Feature retrieved:', feature);
+                            const [lng, lat] = feature.geometry.coordinates;
+                            const name = feature.properties.name || feature.properties.place_formatted || 'Unnamed Location';
+                            showOnMap(lng, lat, name);
+                        } else {
+                            console.log('[retrieve event] No feature found in retrieve event.');
+                            displayErrorMessage('No location data found for the selected suggestion.');
+                        }
+                    });
+
+                    // Event listener for when a user types and presses Enter
+                    const searchInput = searchBox.querySelector('input[type="text"]');
+                    if (searchInput) {
+                        searchInput.addEventListener('keydown', (e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                const query = searchInput.value;
+                                console.log('[Enter keydown] Enter key pressed. Query:', query);
+                                performSearchAndDisplay(query);
+                            }
+                        });
+                    } else {
+                        console.warn('Could not find the input element within MapboxSearchBox for Enter key listener.');
+                    }
+
+                    // Event listener for the "Submit" button (next to search bar)
+                    submitButton.addEventListener('click', () => {
+                        const searchInput = searchBox.querySelector('input[type="text"]');
+                        if (searchInput) {
+                            const query = searchInput.value;
+                            console.log('[Submit button click] Clicked. Query:', query);
+
+                            if (!query || query.trim() === '') {
+                                displayErrorMessage('Please enter a location to search.');
+                                return;
+                            }
+                            performSearchAndDisplay(query);
+                        } else {
+                            console.warn('[Submit button click] Could not find search input to perform search.');
+                            displayErrorMessage('Search input not found. Cannot perform search.');
+                        }
+                    });
+
+                    // Event listener for "Use My Current Location" button
+                    currentLocationButton.addEventListener('click', () => {
+                        console.log('[Current Location Button] Clicked.');
+                        if (navigator.geolocation) {
+                            loadingIndicator.classList.remove('hidden');
+                            displayErrorMessage('Getting your current location...');
+                            navigator.geolocation.getCurrentPosition(
+                                async (position) => {
+                                    loadingIndicator.classList.add('hidden');
+                                    const lat = position.coords.latitude;
+                                    const lng = position.coords.longitude;
+                                    console.log(`[Current Location] Latitude: ${lat}, Longitude: ${lng}`);
+
+                                    try {
+                                        const response = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${lng},${lat}.json?access_token=${mapboxgl.accessToken}`);
+                                        const data = await response.json();
+
+                                        if (data.features && data.features.length > 0) {
+                                            const placeName = data.features[0].place_name;
+                                            console.log(`[Current Location] Reverse geocoded name: "${placeName}"`);
+                                            showOnMap(lng, lat, placeName);
+                                            displayErrorMessage('Current location found!');
+                                        } else {
+                                            console.log('[Current Location] No place found for current coordinates.');
+                                            showOnMap(lng, lat, `Lat: ${lat.toFixed(6)}, Lon: ${lng.toFixed(6)}`);
+                                            displayErrorMessage('No detailed place name found for your current location.');
+                                        }
+                                    } catch (error) {
+                                        console.error('[Current Location] Error during reverse geocoding:', error);
+                                        showOnMap(lng, lat, `Lat: ${lat.toFixed(6)}, Lon: ${lng.toFixed(6)}`);
+                                        displayErrorMessage('Error getting address for current location.');
+                                    }
+                                },
+                                (error) => {
+                                    loadingIndicator.classList.add('hidden');
+                                    console.error('[Current Location] Geolocation error:', error);
+                                    let errorMessage = 'Unable to retrieve your location.';
+                                    switch(error.code) {
+                                        case error.PERMISSION_DENIED:
+                                            errorMessage = 'Location access denied. Please enable location services in your browser settings.';
+                                            break;
+                                        case error.POSITION_UNAVAILABLE:
+                                            errorMessage = 'Location information is unavailable.';
+                                            break;
+                                        case error.TIMEOUT:
+                                            errorMessage = 'The request to get user location timed out.';
+                                            break;
+                                        case error.UNKNOWN_ERROR:
+                                            errorMessage = 'An unknown error occurred while getting location.';
+                                            break;
+                                    }
+                                    displayErrorMessage(errorMessage);
+                                },
+                                {
+                                    enableHighAccuracy: true,
+                                    timeout: 10000,
+                                    maximumAge: 0
+                                }
+                            );
+                        } else {
+                            console.error('[Current Location] Geolocation is not supported by this browser.');
+                            displayErrorMessage('Geolocation is not supported by your browser.');
+                        }
+                    });
+
+                    // Event listener for "Submit All Information" button
+                    submitAllInfoButton.addEventListener('click', () => {
+                        console.log('[Submit All Info Button] Clicked.');
+                        const displayedAddress = addressTextArea.value.trim();
+                        const homeAddress = homeAddressTextArea.value.trim();
+
+                        let message = "Thank you for submitting your information!\n\n";
+
+                        if (displayedAddress) {
+                            message += `Displayed Location:\n${displayedAddress}\n\n`;
+                        } else {
+                            message += "No location was selected on the map.\n\n";
+                        }
+
+                        if (homeAddress) {
+                            message += `Your Home Address:\n${homeAddress}\n\n`;
+                        } else {
+                            message += "No home address was entered.\n\n";
+                        }
+
+                        showInfoModal(message);
+                    });
+
+                    // Event listener for modal close button
+                    modalCloseButton.addEventListener('click', hideInfoModal);
+
+
+                    /**
+                     * Displays a given location on the map with a marker and popup.
+                     * @param {number} lng - Longitude.
+                     * @param {number} lat - Latitude.
+                     * @param {string} name - Place name or description.
+                     */
+                    function showOnMap(lng, lat, name) {
+                        console.log(`[showOnMap] Called with: Lat=${lat}, Lng=${lng}, Name="${name}"`);
+
+                        // Validate coordinates and name
+                        if (typeof lng !== 'number' || typeof lat !== 'number' || !name) {
+                            console.error('[showOnMap] Invalid parameters received:', { lng, lat, name });
+                            displayErrorMessage('Invalid location data. Cannot display on map.');
+                            return;
+                        }
+
+                        console.log(`[showOnMap] Attempting to show on map: ${name} (Lat: ${lat}, Lng: ${lng})`);
+
+                        // Fly the map to the new location with a specific zoom level
+                        map.flyTo({ center: [lng, lat], zoom: 15, essential: true });
+
+                        // Remove any existing marker before adding a new one
+                        if (marker) {
+                            marker.remove();
+                            console.log('[showOnMap] Existing marker removed.');
+                        }
+
+                        // Create a new marker and set its coordinates
+                        marker = new mapboxgl.Marker()
+                            .setLngLat([lng, lat])
+                            // Create a popup with the place name and attach it to the marker
+                            .setPopup(new mapboxgl.Popup({ offset: 25 }).setText(name))
+                            .addTo(map);
+
+                        // Open the popup immediately
+                        marker.togglePopup();
+                        console.log('[showOnMap] New marker added and popup toggled.');
+
+                        // Update the address textarea
+                        addressTextArea.value = `📍 ${name}\nLat: ${lat.toFixed(6)}, Lon: ${lng.toFixed(6)}`;
+                        addressTextArea.classList.remove('hidden');
+                        console.log('[showOnMap] Address textarea updated and shown.');
+                    }
+
+                    // Add map click listener for selecting locations directly on the map
+                    map.on('click', async (e) => {
+                        const clickedLng = e.lngLat.lng;
+                        const clickedLat = e.lngLat.lat;
+                        console.log(`[Map Click] Clicked at: Lng=${clickedLng}, Lat=${clickedLat}`);
+
+                        loadingIndicator.classList.remove('hidden');
+                        try {
+                            // Perform reverse geocoding to get a place name for the clicked coordinates
+                            const response = await fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${clickedLng},${clickedLat}.json?access_token=${mapboxgl.accessToken}`);
+                            const data = await response.json();
+                            loadingIndicator.classList.add('hidden');
+
+                            if (data.features && data.features.length > 0) {
+                                const placeName = data.features[0].place_name;
+                                console.log(`[Map Click] Reverse geocoded name: "${placeName}"`);
+                                showOnMap(clickedLng, clickedLat, placeName);
+                            } else {
+                                console.log('[Map Click] No place found for clicked coordinates.');
+                                showOnMap(clickedLng, clickedLat, `Lat: ${clickedLat.toFixed(6)}, Lon: ${clickedLng.toFixed(6)}`);
+                                displayErrorMessage('No detailed place name found for this location.');
+                            }
+                        } catch (error) {
+                            loadingIndicator.classList.add('hidden');
+                            console.error('[Map Click] Error during reverse geocoding:', error);
+                            showOnMap(clickedLng, clickedLat, `Lat: ${clickedLat.toFixed(6)}, Lon: ${lng.toFixed(6)}`);
+                            displayErrorMessage('Error getting location details for clicked point.');
+                        }
+                    });
+
+                    // Optional: Add a map load listener to confirm map is ready
+                    map.on('load', () => {
+                        console.log('Map has finished loading.');
+                    });
+
+                } catch (error) {
+                    console.error('An unhandled error occurred during Mapbox initialization:', error);
+                    displayErrorMessage('An unexpected error occurred. Please check the console for more details.');
+                }
+            }
+        });
+    </script>
+
+</body>
+</html> 

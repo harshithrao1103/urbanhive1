@@ -15,6 +15,7 @@ import geminiRouter from "./routes/gemini.route.js";
 import locationRouter from "./routes/location.route.js";
 import emergencyRouter from "./routes/emergency.route.js";
 import chatRouter from "./routes/chat.route.js";
+import uploadRouter from "./routes/upload.route.js";
 
 //import uploadToS3 from "./utils/AWSUpload.js";
 import connectDb from "./utils/connectDb.js";
@@ -82,6 +83,7 @@ app.use("/api/location", locationRouter);
 app.use("/api/gemini", geminiRouter);
 app.use("/api/emergency", emergencyRouter);
 app.use("/api/chat", chatRouter);
+app.use("/api/v1", uploadRouter);
 
 // ✅ Start server
 const PORT = process.env.PORT || 8000;
